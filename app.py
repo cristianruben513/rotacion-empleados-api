@@ -2,50 +2,59 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import joblib
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 
 app = FastAPI()
 
 # Cargar el modelo y el scaler
 try:
-    model = joblib.load('model/model.pkl')
-    scaler = joblib.load('model/scaler.pkl')
+    model = joblib.load('./model/model.pkl')
+    scaler = joblib.load('./model/scaler.pkl')
 except FileNotFoundError as e:
     raise Exception(f"Archivo no encontrado: {e}")
+except Exception as e:
+    raise Exception(f"Error al cargar los archivos: {e}")
 
-# Lista de características usadas durante el entrenamiento
+# Lista de características usadas durante el entrenamiento (incluyendo codificación One-Hot)
 original_features = [
-    'Age', 'BusinessTravel', 'Department', 'DistanceFromHome', 'Education',
-    'EducationField', 'EnvironmentSatisfaction', 'Gender', 'JobRole', 'JobSatisfaction',
-    'MaritalStatus', 'MonthlyIncome', 'NumCompaniesWorked', 'OverTime', 'PercentSalaryHike',
+    'Age', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 
+    'JobSatisfaction', 'MonthlyIncome', 'NumCompaniesWorked', 'PercentSalaryHike', 
     'TotalWorkingYears', 'TrainingTimesLastYear', 'WorkLifeBalance', 'YearsAtCompany',
-    'YearsInCurrentRole', 'YearsSinceLastPromotion', 'YearsWithCurrManager'
+    'YearsInCurrentRole', 'YearsSinceLastPromotion', 'YearsWithCurrManager',
+    'BusinessTravel_Travel_Frequently', 'BusinessTravel_Travel_Rarely', 
+    'Department_Research & Development', 'Department_Sales', 
+    'EducationField_Life Sciences', 'EducationField_Marketing', 
+    'EducationField_Medical', 'EducationField_Other', 
+    'EducationField_Technical Degree', 'Gender_Male', 
+    'JobRole_Human Resources', 'JobRole_Laboratory Technician', 
+    'JobRole_Manager', 'JobRole_Manufacturing Director', 
+    'JobRole_Research Director', 'JobRole_Research Scientist', 
+    'JobRole_Sales Executive', 'JobRole_Sales Representative', 
+    'MaritalStatus_Married', 'MaritalStatus_Single', 'OverTime_Yes'
 ]
 
 def encode_features(features):
-    # Codificación one-hot
+    # Codificación one-hot para las características categóricas
     features_encoded = pd.get_dummies(features, drop_first=True)
 
     # Asegurarse de que las características coincidan con las usadas durante el entrenamiento
     missing_cols = set(original_features) - set(features_encoded.columns)
     for c in missing_cols:
         features_encoded[c] = 0
-    features_encoded = features_encoded[original_features]
+    
+    # Mantener el mismo orden de las columnas que en el entrenamiento
+    features_encoded = features_encoded.reindex(columns=original_features, fill_value=0)
+    
     return features_encoded
 
 def preprocess_features(data):
     # Crear un DataFrame con las características
-    features = pd.DataFrame(data, columns=original_features)
+    features = pd.DataFrame(data, columns=[col for col in data.keys()])
     
     # Codificar las variables categóricas
     features_encoded = encode_features(features)
     
     # Escalar las características
     features_scaled = scaler.transform(features_encoded)
-    
-    # Asegurarse de que la entrada es 2D
-    if features_scaled.ndim == 1:
-        features_scaled = features_scaled.reshape(1, -1)
     
     return features_scaled
 
