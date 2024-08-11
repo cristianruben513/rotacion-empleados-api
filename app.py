@@ -8,8 +8,8 @@ app = FastAPI()
 
 # Cargar el modelo y el scaler
 try:
-    model = joblib.load('modelo_rotacion.pkl')
-    scaler = joblib.load('scaler.pkl')
+    model = joblib.load('model/model.pkl')
+    scaler = joblib.load('model/scaler.pkl')
 except FileNotFoundError as e:
     raise Exception(f"Archivo no encontrado: {e}")
 
